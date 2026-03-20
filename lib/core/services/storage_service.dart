@@ -5,12 +5,16 @@ import '../models/analysis.dart';
 /// Hive-based local storage for analyses.
 class StorageService {
   static const String _boxName = 'analyses';
-  late Box<String> _box;
+
+  /// Get the already-opened Hive box (opened in main.dart).
+  Box<String> get _box => Hive.box<String>(_boxName);
 
   /// Initialize Hive and open the analyses box.
   Future<void> init() async {
     await Hive.initFlutter();
-    _box = await Hive.openBox<String>(_boxName);
+    if (!Hive.isBoxOpen(_boxName)) {
+      await Hive.openBox<String>(_boxName);
+    }
   }
 
   /// Persist an [Analysis] to local storage.

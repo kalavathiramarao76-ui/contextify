@@ -39,7 +39,9 @@ class AnalysisState {
 // ── Providers ──
 
 final storageServiceProvider = Provider<StorageService>((ref) {
-  return StorageService();
+  final service = StorageService();
+  // init() is called in main.dart before runApp, so the box is already open
+  return service;
 });
 
 final aiServiceProvider = Provider<AiService>((ref) {

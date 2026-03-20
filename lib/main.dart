@@ -12,7 +12,11 @@ import 'package:contextify/features/paywall/paywall_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize storage
   await Hive.initFlutter();
+  // Pre-open the analyses box so StorageService can use it immediately
+  await Hive.openBox<String>('analyses');
 
   // Determine initial route
   final prefs = await SharedPreferences.getInstance();
