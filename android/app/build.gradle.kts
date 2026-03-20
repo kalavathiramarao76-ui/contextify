@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.contextify.contextify"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = flutter.ndkVersion — NDK cmake is x86 on this ARM64 host
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
