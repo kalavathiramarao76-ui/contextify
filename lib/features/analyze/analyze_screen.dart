@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:contextify/core/design/app_colors.dart';
 import 'package:contextify/core/models/analysis.dart';
 import 'package:contextify/core/providers/analysis_provider.dart';
+import 'package:contextify/core/providers/auth_provider.dart';
 import 'package:contextify/core/widgets/animated_score_ring.dart';
 import 'package:contextify/core/widgets/app_shimmer.dart';
 import 'package:contextify/core/widgets/flag_card.dart';
@@ -141,13 +142,25 @@ class _AnalyzeScreenState extends ConsumerState<AnalyzeScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Greeting
-              Text(
-                'What needs decoding?',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
-                ),
+              Builder(
+                builder: (context) {
+                  final authState = ref.watch(authProvider);
+                  final firstName = authState.isLoggedIn &&
+                          authState.user!.fullName.isNotEmpty
+                      ? authState.user!.fullName.split(' ').first
+                      : null;
+                  final greeting = firstName != null
+                      ? 'Hi $firstName, what needs decoding?'
+                      : 'What needs decoding?';
+                  return Text(
+                    greeting,
+                    style: GoogleFonts.inter(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 6),
               Text(

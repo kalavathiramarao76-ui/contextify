@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:contextify/core/design/app_colors.dart';
 import 'package:contextify/core/providers/analysis_provider.dart';
+import 'package:contextify/core/providers/auth_provider.dart';
 import 'package:contextify/core/providers/theme_provider.dart';
 
 /// Professional settings / profile screen.
@@ -17,6 +18,7 @@ class SettingsScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final themeMode = ref.watch(themeProvider);
     final history = ref.watch(analysisHistoryProvider);
+    final authState = ref.watch(authProvider);
 
     // Compute stats
     final totalAnalyses = history.length;
@@ -40,7 +42,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Profile header card
+            // Profile header card — auth-aware
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -54,53 +56,50 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              child: authState.isLoggedIn
+                  ? _buildLoggedInHeader(authState, colorScheme)
+                  : _buildLoggedOutHeader(context, colorScheme),
+            ),
+            const SizedBox(height: 16),
+
+            // Sync status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: authState.isLoggedIn
+                    ? const Color(0xFF0D9488).withAlpha(20)
+                    : colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: authState.isLoggedIn
+                      ? const Color(0xFF0D9488).withAlpha(51)
+                      : colorScheme.outlineVariant.withAlpha(51),
+                ),
+              ),
               child: Row(
                 children: [
-                  // Avatar
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'C',
-                        style: GoogleFonts.inter(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                  Icon(
+                    authState.isLoggedIn
+                        ? Icons.cloud_done_outlined
+                        : Icons.cloud_off_outlined,
+                    size: 20,
+                    color: authState.isLoggedIn
+                        ? const Color(0xFF0D9488)
+                        : colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Contextify User',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Member since 2024',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      authState.isLoggedIn
+                          ? 'Analyses synced to cloud'
+                          : 'Sign in to sync your analyses',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: authState.isLoggedIn
+                            ? const Color(0xFF0D9488)
+                            : colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -140,6 +139,79 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 28),
+
+            // Account section (logged in only)
+            if (authState.isLoggedIn) ...[
+              _SectionHeader(title: 'Account', colorScheme: colorScheme),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorScheme.shadow.withAlpha(8),
+                      blurRadius: 8,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.logout_rounded,
+                      color: AppColors.danger),
+                  title: Text(
+                    'Log Out',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onTap: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(
+                          'Log Out',
+                          style:
+                              GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
+                        content: Text(
+                          'Are you sure you want to log out?',
+                          style: GoogleFonts.inter(),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.danger,
+                            ),
+                            child: const Text('Log Out'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await ref.read(authProvider.notifier).logout();
+                      if (context.mounted) {
+                        context.go('/login');
+                      }
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 28),
+            ],
 
             // Appearance section
             _SectionHeader(title: 'Appearance', colorScheme: colorScheme),
@@ -246,9 +318,9 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       );
                     },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12)),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(12)),
                     ),
                   ),
                   Divider(
@@ -326,9 +398,9 @@ class SettingsScreen extends ConsumerWidget {
                         }
                       });
                     },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(12)),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(12)),
                     ),
                   ),
                 ],
@@ -370,9 +442,9 @@ class SettingsScreen extends ConsumerWidget {
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12)),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(12)),
                     ),
                   ),
                   Divider(
@@ -474,9 +546,9 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       );
                     },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(12)),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(12)),
                     ),
                   ),
                 ],
@@ -563,8 +635,8 @@ class SettingsScreen extends ConsumerWidget {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
                             ),
                             child: Text(
                               'View Plans',
@@ -583,6 +655,160 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Header when user is logged in.
+  Widget _buildLoggedInHeader(AuthState authState, ColorScheme colorScheme) {
+    final user = authState.user!;
+    final initials = user.fullName.isNotEmpty
+        ? user.fullName
+            .split(' ')
+            .where((p) => p.isNotEmpty)
+            .take(2)
+            .map((p) => p[0].toUpperCase())
+            .join()
+        : user.email[0].toUpperCase();
+
+    return Row(
+      children: [
+        // Avatar
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Center(
+            child: Text(
+              initials,
+              style: GoogleFonts.inter(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                user.fullName.isNotEmpty ? user.fullName : 'Contextify User',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                user.email,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D9488).withAlpha(26),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  user.tier.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0D9488),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Header when user is not logged in — shows sign in / create account buttons.
+  Widget _buildLoggedOutHeader(BuildContext context, ColorScheme colorScheme) {
+    return Column(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Center(
+            child: Icon(Icons.person_outlined, color: Colors.white, size: 32),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Sign in to sync your data',
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => context.go('/login'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0D9488),
+                  side: const BorderSide(color: Color(0xFF0D9488)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Sign In',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => context.go('/signup'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D9488),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Create Account',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
